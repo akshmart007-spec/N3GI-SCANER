@@ -1,0 +1,59 @@
+name: Build APK
+
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      - name: Fix nested folder (if user uploaded ScanPhotoPro/ folder)
+        run: |
+          if [ -d ScanPhotoPro/app ] && [ ! -d app ]; then
+            echo "Found nested ScanPhotoPro/ — moving files to root"
+            shopt -s dotglob
+            mv ScanPhotoPro/* .
+            rmdir ScanPhotoPro || true
+          fi
+          ls -la
+          test -f settings.gradle
+          test -f app/build.gradle
+
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+
+      - name: Build debug APK
+        run: |
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            gradle assembleDebug --no-daemon --stacktrace
+          fi
+
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: N3GI-SCANER-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
